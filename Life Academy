@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Spark Hub Collective</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Inter", "Segoe UI", system-ui, sans-serif; background: #08090e; color: #dde1f0; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #2a2d40; border-radius: 4px; }
+    input, textarea, select { font-family: inherit; }
+    button { font-family: inherit; cursor: pointer; border: none; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn 0.25s ease forwards; }
+    video { border-radius: 10px; background: #000; }
+    ::placeholder { color: #3a3d52; }
+    select option { background: #161824; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const STORAGE_KEY = "rla3";
+const TEACHER_PIN = "2024";
+const DEFAULT_PIN = "1234";
+const PAYCHECK_DATES = ["2026-03-25","2026-04-08","2026-04-22","2026-05-06","2026-05-20"];
+const BREAK_DATES = new Set(["2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-05-11","2026-05-12","2026-05-13","2026-05-14"]);
+const PROJECT_START = "2026-03-18";
+const PROJECT_END   = "2026-05-22";
+
+const C = {
+  cyan:"#1EC8D0", cyanD:"#0fa8b0",
+  pink:"#FF4DA6", pinkD:"#d93d8a",
+  amber:"#F59E0B", amberD:"#d48a09",
+  purple:"#7C3AED", purpleD:"#6229cc",
+  dark:"#08090e", card:"#0f1117", card2:"#161824", border:"#1f2235",
+  text:"#dde1f0", muted:"#52566e", green:"#10b981", red:"#f43f5e",
+};
+const THEMES = [
+  {primary:C.cyan,   dim:"#0a2830"},
+  {primary:C.pink,   dim:"#2a0818"},
+  {primary:C.amber,  dim:"#2a1a04"},
+  {primary:C.purple, dim:"#180a28"},
+];
+
+const THRIVELY = {
+  1:{profile:"Poet Laureate",top5:["Flexibility","Memory","Worldly","Appreciation","Verbal"],
+     riasec:"Conventional (C) · Enterprising (E) · Investigative (I)",
+     habits:["Creating, Imagining & Innovating","Managing Impulsivity","Metacognition"],
+     aspirations:["Astronaut","Gaming Manager","Inspector & Tester","Lead Animal Care Specialist","Veterinarian"],
+     passionScore:null,
+     strategies:[
+       {icon:"✍️",title:"Verbal + Vision",body:"Use your verbal strengths to write and present ideas about your dream careers — combine your love of animals or space with powerful storytelling!"},
+       {icon:"🧠",title:"Memory Systems",body:"Build a color-coded budget tracker using your Memory strength. Try flashcards for financial terms or a budget song to lock in the numbers."},
+       {icon:"🌍",title:"Think Globally",body:"Your Worldly strength means you see the big picture. Research careers with international impact — NASA researchers, global vets, international inspectors."},
+       {icon:"📋",title:"Organize Everything",body:"Your Conventional RIASEC means you love systems. Build detailed checklists, schedules, and organized budgets — structure is your superpower!"},
+       {icon:"🚀",title:"Enterprise Mindset",body:"Your Enterprising strength means you can lead. Practice pitching your ideas and explore careers where you manage, direct, or grow something big."},
+       {icon:"🔍",title:"Investigate Deeply",body:"Your Investigative RIASEC means you love research. Dig deep into salary data, housing markets, and career paths before making any decision."},
+       {icon:"📓",title:"Spark Journal",body:"Your Metacognition habit means you think deeply about thinking. Keep a Spark Journal to log goals, ideas, and daily reflections — write it all down!"},
+     ]},
+  2:{profile:"High Ceiling",top5:["Social Justice","Appreciation","Flexibility","Memory","Analytical"],
+     riasec:"Realistic (R) · Investigative (I) · Conventional (C)",
+     habits:["Thinking Interdependently","Applying Past Knowledge","Questioning & Posing Problems"],
+     aspirations:["Agricultural Engineer","Agricultural Inspector","Agricultural Scientist"],
+     passionScore:null,
+     strategies:[
+       {icon:"⚖️",title:"Justice + Agriculture",body:"Combine your Social Justice passion with agricultural careers — food equity, sustainable farming advocacy, and fair labor systems need leaders like you!"},
+       {icon:"📊",title:"Analytical Money Mind",body:"Use your Analytical strength to research salaries, housing costs, and investments THOROUGHLY before spending or committing to anything."},
+       {icon:"🙏",title:"Appreciation Practice",body:"Your Appreciation strength means you notice value everywhere. Pair gratitude journaling with budget tracking — celebrate every financial win."},
+       {icon:"🌱",title:"Real-World Policy",body:"Study agricultural policy and food legislation. Your passion for justice means you're built to change the systems that determine who eats and who doesn't."},
+       {icon:"📚",title:"Memory Mastery",body:"Use your Memory strength to master key financial terms: APR, compound interest, net worth, emergency fund. Make them second nature."},
+       {icon:"🔄",title:"Flexible Plans",body:"Your Flexibility strength means you adapt well. Always have a Plan B budget — what happens when an unexpected expense hits? Plan for it now."},
+       {icon:"🤝",title:"Lead with Fairness",body:"Your High Ceiling profile means limitless potential. Seek leadership roles where you advocate for workplace fairness and economic equality."},
+     ]},
+  3:{profile:"Assertive & Resilient",top5:["Assertiveness","Memory","Resilience","Flexibility","Verbal"],
+     riasec:"Artistic (A) · Enterprising (E) · Social (S)",
+     habits:["Finding Humour","Awe & Wonderment","Listening with Empathy"],
+     aspirations:["Baker/Pastry Chef","Lawyer","Model"],
+     passionScore:850,
+     strategies:[
+       {icon:"💪",title:"Negotiate Like a Boss",body:"Your Assertiveness is a SUPERPOWER in salary negotiation. Practice saying: Based on my research, I believe I'm worth X. Own your value!"},
+       {icon:"🎂",title:"Baker Business Plan",body:"Research food business ownership: licensing costs, commercial kitchen rental, pricing your baked goods, and what it takes to build a loyal client base."},
+       {icon:"⚡",title:"Bounce-Back Budget",body:"Your Resilience means you bounce back fast. When unexpected expenses hit, don't panic — immediately make a recovery plan and execute it with focus."},
+       {icon:"📸",title:"Model Business Savvy",body:"Research the business side of modeling: agency rates, contract terms, residuals, and how to maintain financial independence as a creative professional."},
+       {icon:"⚖️",title:"Law & Money",body:"Connect financial literacy to your law dreams now. Understanding contracts, billing, retainers, and business agreements prepares you for ANY career."},
+       {icon:"🗣️",title:"Speak Your Worth",body:"Your Verbal strength makes you a natural communicator. Practice pitching your career goals and business ideas out loud — confidence is built through repetition."},
+       {icon:"🔥",title:"Passion 850 Power",body:"A Passion Score of 850 is ELITE. That fire inside you is rare — channel it toward your most ambitious financial goal and watch what becomes possible."},
+     ]},
+  4:{profile:"Social & Creative",top5:["Compassion","Appreciation","Social Justice","Social","Creative Skill"],
+     riasec:"Artistic (A) · Social (S) · Realistic (R)",
+     habits:["Thinking Flexibly","Persisting","Creating & Innovating"],
+     aspirations:["Car Designer","Music Director & Composer","Photographer"],
+     passionScore:null,
+     strategies:[
+       {icon:"🚗",title:"Design Your Future",body:"Car Design path: research concept car designer salaries ($60K-$120K+), portfolio requirements, and top design schools. Start sketching your dream car today!"},
+       {icon:"🎵",title:"Music Money Moves",body:"Explore how composers earn: royalties, sync licensing for film/TV, scoring games, and performance fees. Music is a business — learn the money side!"},
+       {icon:"📷",title:"Photography as Business",body:"Research how to price photography sessions, build a client base, and package your services. Portrait, event, or product photography can be highly lucrative."},
+       {icon:"❤️",title:"Purpose-Driven Career",body:"Your Compassion means you care deeply about others. Purpose-driven work leads to more satisfaction AND more sustainable success — follow what matters to you."},
+       {icon:"✨",title:"Creative Problem Solving",body:"Your Creative Skill means you see problems differently. Apply this to money management — find unique, unexpected ways to save, earn side income, and invest."},
+       {icon:"🤝",title:"Collaborate to Succeed",body:"Your Social strength means you thrive with people. Seek careers that blend creativity AND collaboration — design studios, music bands, creative agencies."},
+       {icon:"🎉",title:"Celebrate Every Win",body:"Your Appreciation habit helps you find joy in small victories. Celebrate every time you pay a bill on time, save money, or hit a financial milestone!"},
+     ]},
+};
+
+const SEED_PROMPTS = [
+  {id:"p1",date:"2026-03-18",topic:"Career Dreams",question:"What career are you most excited to explore this project? Why does it excite you, and what steps would you take to get there?"},
+  {id:"p2",date:"2026-03-20",topic:"Budget Basics",question:"If you had $3,000 per month to live on, what would you spend it on first? Make a priority list and explain your thinking."},
+  {id:"p3",date:"2026-03-25",topic:"First Paycheck!",question:"You just received your FIRST paycheck! How does it feel? What will you do with the money, and what bills are you paying first?"},
+  {id:"p4",date:"2026-03-27",topic:"Housing Hunt",question:"Research your dream neighborhood or apartment. What did you find? Share the location, monthly cost, and whether it fits your budget."},
+  {id:"p5",date:"2026-04-01",topic:"Budget Challenges",question:"What has been the hardest part of managing your budget so far? What surprised you most about real-life expenses?"},
+  {id:"p6",date:"2026-04-03",topic:"Financial Wisdom",question:"If you could give your younger self one piece of financial advice before starting this project, what would it be and why?"},
+  {id:"p7",date:"2026-04-10",topic:"Back to Reality",question:"Spring Break is over and you're back to work! How do you feel about your spending habits? Did your goals change after the break?"},
+  {id:"p8",date:"2026-04-15",topic:"Strengths in Action",question:"Describe a moment this week where one of your Thrively strengths helped you make a financial or career decision. Be specific!"},
+  {id:"p9",date:"2026-04-22",topic:"Paycheck Strategy",question:"Another paycheck hits! What is your strategy for this one? Are you saving, spending, or paying off something? Break it down."},
+  {id:"p10",date:"2026-04-29",topic:"Unexpected Life",question:"What unexpected expense surprised you most? How did you handle it emotionally and financially? What would you do differently?"},
+  {id:"p11",date:"2026-05-06",topic:"Midpoint Reflection",question:"We're nearing the end! What is the biggest thing you've learned about money, work, and real life? How has your thinking changed?"},
+  {id:"p12",date:"2026-05-20",topic:"Final Chapter",question:"Final paycheck day! Looking back on this entire project, how has your view of money, careers, and your future changed? What's next?"},
+];
+
+function toDateStr(d){return d.toISOString().split("T")[0];}
+function todayStr(){return toDateStr(new Date());}
+function isSchoolDay(d){const w=d.getDay();if(w===0||w===6)return false;return!BREAK_DATES.has(toDateStr(d));}
+function getSchoolDayNumber(ds){
+  const target=new Date(ds+"T12:00:00"),start=new Date(PROJECT_START+"T12:00:00");
+  if(target<start)return 0;
+  let count=0;const cur=new Date(start);
+  while(cur<=target){if(isSchoolDay(cur))count++;cur.setDate(cur.getDate()+1);}
+  return count;
+}
+function getTodaySchedule(){const n=getSchoolDayNumber(todayStr());if(n===0)return{type:"planning",dayNum:0};return{type:n%2===1?"blog":"vlog",dayNum:n};}
+function getRemainingDays(){
+  const today=new Date(),end=new Date(PROJECT_END+"T12:00:00");
+  let c=0;const cur=new Date(today);
+  while(cur<=end){if(isSchoolDay(cur))c++;cur.setDate(cur.getDate()+1);}
+  return c;
+}
+function nextPaycheckDate(){const t=todayStr();return PAYCHECK_DATES.find(d=>d>t)||null;}
+function daysUntil(ds){const n=new Date();n.setHours(0,0,0,0);return Math.ceil((new Date(ds+"T00:00:00")-n)/86400000);}
+function fmt(n){return"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtDate(s){if(!s)return"";return new Date(s+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+
+function makeStudent(id,name,emoji,themeIdx){
+  return{id,name,emoji,themeIdx,pin:DEFAULT_PIN,photo:null,balance:0,
+    profile:{grade:id<=2?"7th Grade":"4th Grade"},
+    jobApplication:null,jobStatus:"none",job:null,housing:null,car:null,
+    bills:{electricity:120,water:45,internet:60,phone:50,streaming:15},
+    transactions:[],vlogs:[],blogResponses:[],interviewRequests:[],paycheckDatesReceived:[],savings:0};
+}
+
+const DEFAULT_STATE={
+  version:3,projectName:"The Spark Hub Collective",teacherName:"Ms. J",teacherPin:TEACHER_PIN,
+  blogPrompts:SEED_PROMPTS,
+  students:[makeStudent(1,"Khari Long Moore","✨",0),makeStudent(2,"Reginald Phifer","🌱",1),makeStudent(3,"Marley Cox","🔥",2),makeStudent(4,"Lincoln Cox","🎨",3)],
+};
+
+function loadState(){try{const r=localStorage.getItem(STORAGE_KEY);if(!r)return DEFAULT_STATE;const p=JSON.parse(r);if(p.version!==3)return DEFAULT_STATE;return p;}catch{return DEFAULT_STATE;}}
+function saveState(s){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s));}catch(e){}}
+
+function pendingPaychecks(student){if(!student.job)return[];const t=todayStr();return PAYCHECK_DATES.filter(d=>d<=t&&!student.paycheckDatesReceived.includes(d));}
+function applyPaychecks(student,dates){
+  if(!dates.length||!student.job)return{student,amount:0};
+  const bw=Math.round(student.job.salary/26),total=bw*dates.length;
+  const newT=dates.map(d=>({id:"pay_"+d,date:d,type:"income",category:"Paycheck",description:"Bi-weekly paycheck · "+student.job.employer,amount:bw,paycheckDate:d}));
+  return{student:{...student,balance:student.balance+total,transactions:[...student.transactions,...newT],paycheckDatesReceived:[...student.paycheckDatesReceived,...dates]},amount:total};
+}
+
+function Btn({children,onClick,color=C.cyan,style={},small,outline,disabled}){
+  const bg=outline?"transparent":color+"18";
+  const border="1px solid "+(disabled?"#2a2d40":(outline?color:color+"55"));
+  return(
+    <button onClick={onClick} disabled={disabled} style={{
+      padding:small?"5px 12px":"9px 18px",borderRadius:6,
+      background:disabled?"#1a1c28":(outline?bg:color),
+      border,
+      color:disabled?C.muted:(outline?color:"#fff"),
+      fontWeight:600,fontSize:small?12:13,letterSpacing:"0.02em",
+      transition:"all 0.15s",opacity:disabled?0.5:1,...style}}>{children}</button>);
+}
+
+function Card({children,style={},color,accent}){
+  const borderLeft=accent?"3px solid "+accent:"none";
+  return(<div style={{
+    background:C.card,borderRadius:10,padding:"18px",
+    border:color?"1px solid "+color+"25":"1px solid "+C.border,
+    borderLeft,...style}}>{children}</div>);
+}
+
+function Modal({children,onClose,title}){
+  return(
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+      <div onClick={e=>e.stopPropagation()} className="fade-in" style={{background:C.card,borderRadius:20,padding:28,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto",border:"1px solid "+C.border}}>
+        {title&&<h3 style={{marginBottom:16,fontSize:18}}>{title}</h3>}
+        {children}
+      </div>
+    </div>);
+}
+
+function Tag({children,color=C.cyan}){
+  return(<span style={{display:"inline-block",background:color+"15",color,border:"1px solid "+color+"30",borderRadius:4,padding:"2px 8px",fontSize:11,fontWeight:600,letterSpacing:"0.03em"}}>{children}</span>);
+}
+
+function Divider(){return <div style={{borderTop:"1px solid "+C.border,margin:"16px 0"}} />;}
+
+function Inp({label,value,onChange,type="text",placeholder,multiline,rows=4,style={}}){
+  const base={width:"100%",background:C.card2,border:"1px solid "+C.border,borderRadius:6,padding:"9px 12px",color:C.text,fontSize:13,outline:"none",resize:"vertical",transition:"border 0.15s",...style};
+  return(<div style={{marginBottom:12}}>
+    {label&&<div style={{fontSize:11,color:C.muted,marginBottom:5,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</div>}
+    {multiline?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={base}
+      onFocus={e=>e.target.style.borderColor=C.cyan} onBlur={e=>e.target.style.borderColor=C.border}/>
+    :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={base}
+      onFocus={e=>e.target.style.borderColor=C.cyan} onBlur={e=>e.target.style.borderColor=C.border}/>}
+  </div>);
+}
+
+function Sel({label,value,onChange,options}){
+  return(<div style={{marginBottom:12}}>
+    {label&&<div style={{fontSize:11,color:C.muted,marginBottom:5,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</div>}
+    <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:C.card2,border:"1px solid "+C.border,borderRadius:6,padding:"9px 12px",color:C.text,fontSize:13,outline:"none"}}>
+      {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  </div>);
+}
+
+function PaycheckAlert({amount,onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000}}>
+      <div className="fade-in" style={{background:"linear-gradient(135deg,#0d1f0d,#061406)",border:"2px solid "+C.green,borderRadius:24,padding:"48px 40px",textAlign:"center",maxWidth:420,width:"100%",boxShadow:"0 0 80px "+C.green+"44"}}>
+        <div style={{fontSize:72,marginBottom:16}}>💰</div>
+        <div style={{fontSize:28,fontWeight:800,color:C.green,marginBottom:8}}>PAYDAY!</div>
+        <div style={{fontSize:48,fontWeight:900,color:"#fff",marginBottom:12}}>{fmt(amount)}</div>
+        <div style={{color:C.muted,marginBottom:28,fontSize:15,lineHeight:1.6}}>Your paycheck has been deposited!<br/>Time to budget wisely! 💪</div>
+        <Btn onClick={onClose} color={C.green} style={{width:"100%",padding:"14px",fontSize:16}}>Let&apos;s Go! 🚀</Btn>
+      </div>
+    </div>);
+}
+
+function PinModal({name,color,onSuccess,onCancel}){
+  const [pin,setPin]=useState("");
+  const [error,setError]=useState(false);
+  const press=d=>{if(pin.length<4)setPin(p=>p+d);};
+  const del=()=>setPin(p=>p.slice(0,-1));
+  useEffect(()=>{
+    if(pin.length===4){
+      const ok=onSuccess(pin);
+      if(!ok){setError(true);setTimeout(()=>{setPin("");setError(false);},700);}
+    }
+  },[pin]);
+  const dots=Array.from({length:4},(_,i)=>(
+    <div key={i} style={{width:16,height:16,borderRadius:"50%",background:i<pin.length?(error?C.red:color):C.border,border:"2px solid "+(i<pin.length?color:C.border),transition:"all 0.15s"}}/>));
+  const keys=["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  return(
+    <Modal onClose={onCancel}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:36,marginBottom:8}}>🔐</div>
+        <div style={{fontSize:18,fontWeight:700,marginBottom:4}}>{name}</div>
+        <div style={{color:C.muted,fontSize:13,marginBottom:24}}>Enter your 4-digit PIN</div>
+        <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:28}}>{dots}</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,maxWidth:240,margin:"0 auto"}}>
+          {keys.map((k,i)=>(
+            <button key={i} onClick={()=>k==="⌫"?del():k?press(k):null}
+              style={{padding:"16px",borderRadius:12,background:k?C.card2:"transparent",border:k?"1px solid "+C.border:"none",color:"#fff",fontSize:20,fontWeight:700,cursor:k?"pointer":"default"}}>
+              {k}</button>))}
+        </div>
+        {error&&<div style={{color:C.red,marginTop:16,fontSize:13,fontWeight:600}}>Incorrect PIN. Try again.</div>}
+        <div style={{marginTop:20}}><Btn onClick={onCancel} outline color={C.muted} small>Cancel</Btn></div>
+      </div>
+    </Modal>);
+}
+
+function LoginScreen({state,onTeacherLogin,onStudentLogin}){
+  const [pin,setPin]=useState(null);
+  return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#08080f 0%,#0a1820 50%,#08080f 100%)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div className="fade-in" style={{textAlign:"center",marginBottom:40}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:12,background:"linear-gradient(135deg,"+C.cyan+"22,"+C.pink+"22)",border:"1px solid "+C.cyan+"44",borderRadius:20,padding:"12px 28px",marginBottom:16}}>
+          <span style={{fontSize:28}}>⚡</span>
+          <span style={{fontSize:24,fontWeight:900,letterSpacing:1,background:"linear-gradient(90deg,"+C.cyan+","+C.pink+")",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>The Spark Hub Collective</span>
+          <span style={{fontSize:28}}>⚡</span>
+        </div>
+        <div style={{color:C.muted,fontSize:14}}>Real Life Academy · Financial Simulation Project</div>
+        <div style={{marginTop:8,color:C.amber,fontSize:13,fontWeight:600}}>
+          📅 {fmtDate(PROJECT_START)} → {fmtDate(PROJECT_END)} · {getRemainingDays()} school days remaining
+        </div>
+        <div style={{marginTop:6,color:C.muted,fontSize:12}}>
+          💰 Paychecks: {PAYCHECK_DATES.map(d=>fmtDate(d)).join(" · ")}
+        </div>
+      </div>
+      <div style={{width:"100%",maxWidth:580}}>
+        <div onClick={()=>setPin({type:"teacher"})} style={{background:"linear-gradient(135deg,"+C.card+","+C.card2+")",border:"1px solid "+C.cyan+"55",borderRadius:16,padding:"18px 22px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",marginBottom:20,transition:"all 0.2s"}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=C.cyan}
+          onMouseLeave={e=>e.currentTarget.style.borderColor=C.cyan+"55"}>
+          <div style={{width:52,height:52,borderRadius:12,background:"linear-gradient(135deg,"+C.cyan+","+C.cyanD+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>👩‍🏫</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:15}}>{state.teacherName||"Teacher"}</div>
+            <div style={{color:C.muted,fontSize:13}}>Teacher Dashboard · Manage students &amp; prompts</div>
+          </div>
+          <div style={{color:C.cyan,fontSize:20}}>→</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          {state.students.map((s,i)=>{
+            const th=THEMES[s.themeIdx];
+            return(
+              <div key={s.id} onClick={()=>setPin({type:"student",student:s})}
+                style={{background:"linear-gradient(135deg,"+C.card+","+th.dim+")",border:"1px solid "+th.primary+"44",borderRadius:16,padding:"18px",cursor:"pointer",transition:"all 0.2s",animationDelay:i*0.08+"s"}}
+                className="fade-in"
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=th.primary;e.currentTarget.style.transform="translateY(-3px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=th.primary+"44";e.currentTarget.style.transform="none";}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  {s.photo?<img src={s.photo} alt="" style={{width:48,height:48,borderRadius:10,objectFit:"cover",border:"2px solid "+th.primary}}/>
+                  :<div style={{width:48,height:48,borderRadius:10,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{s.emoji}</div>}
+                  <div>
+                    <div style={{fontWeight:800,fontSize:14}}>{s.name}</div>
+                    <div style={{fontSize:12,color:C.muted}}>{s.profile.grade}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <Tag color={th.primary}>{THRIVELY[s.id].profile}</Tag>
+                  {s.job&&<Tag color={C.green}>✅ Hired</Tag>}
+                </div>
+                {s.job&&<div style={{marginTop:6,fontSize:13,color:C.green,fontWeight:600}}>{fmt(s.balance)}</div>}
+              </div>);
+          })}
+        </div>
+      </div>
+      <div style={{marginTop:24,textAlign:"center",color:C.muted,fontSize:12,maxWidth:480,lineHeight:1.7}}>
+        📋 <strong style={{color:C.amber}}>Planning Phase this week</strong> (Mar 18-20) — Research &amp; apply for jobs!<br/>
+        First paychecks deposit <strong style={{color:C.green}}>March 25</strong> for hired students.
+      </div>
+      {pin&&(
+        <PinModal
+          name={pin.type==="teacher"?(state.teacherName||"Teacher"):pin.student.name}
+          color={pin.type==="teacher"?C.cyan:(THEMES[pin.student?pin.student.themeIdx:0]?THEMES[pin.student?pin.student.themeIdx:0].primary:C.cyan)}
+          onSuccess={entered=>{
+            if(pin.type==="teacher"){if(entered===state.teacherPin){onTeacherLogin();setPin(null);return true;}return false;}
+            else{if(entered===pin.student.pin){onStudentLogin(pin.student);setPin(null);return true;}return false;}
+          }}
+          onCancel={()=>setPin(null)}/>)}
+    </div>);
+}
+
+function HomePanel({student,state}){
+  const th=THEMES[student.themeIdx];
+  const schedule=getTodaySchedule();
+  const nextPay=nextPaycheckDate();
+  const daysLeft=nextPay?daysUntil(nextPay):null;
+  const bw=student.job?Math.round(student.job.salary/26):0;
+  const monthlyBills=Object.values(student.bills).reduce((a,b)=>a+b,0)+((student.housing?student.housing.monthlyRent:0)||0)+((student.car?student.car.payment:0)||0)+((student.car?student.car.insurance:0)||0);
+  const recent=[...student.transactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderLeft:"3px solid "+th.primary,borderRadius:10,padding:"20px 22px"}}>
+        <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.08em",marginBottom:8}}>CURRENT BALANCE</div>
+        <div style={{fontSize:42,fontWeight:800,color:student.balance>=0?C.text:C.red,marginBottom:student.job?8:0,fontVariantNumeric:"tabular-nums"}}>{fmt(student.balance)}</div>
+        {student.job&&<div style={{fontSize:13,color:C.muted}}>{student.job.title} · {student.job.employer}</div>}
+        {nextPay&&(
+          <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em"}}>NEXT PAYCHECK</div>
+              <div style={{fontSize:18,fontWeight:700,color:C.green,marginTop:2}}>{fmt(bw)}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:13,fontWeight:600,color:daysLeft===0?C.green:C.text}}>{daysLeft===0?"Today!":daysLeft+" days"}</div>
+              <div style={{fontSize:11,color:C.muted}}>{fmtDate(nextPay)}</div>
+            </div>
+          </div>)}
+      </div>
+      <Card color={schedule.type==="blog"?C.cyan:C.pink}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:32}}>{schedule.type==="blog"?"📝":schedule.type==="vlog"?"🎥":"📋"}</div>
+          <div>
+            <div style={{fontWeight:700,fontSize:15}}>
+              {schedule.type==="blog"?"Blog Day — School Day #"+schedule.dayNum:schedule.type==="vlog"?"Vlog Day — School Day #"+schedule.dayNum:"Planning Week — Research & Apply!"}
+            </div>
+            <div style={{color:C.muted,fontSize:13}}>
+              {schedule.type==="blog"?"Head to the Blog tab to respond to today's prompt.":schedule.type==="vlog"?"Head to the Vlogs tab to record today's video.":"Focus on job applications and career research this week."}
+            </div>
+          </div>
+        </div>
+      </Card>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"16px 18px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:600}}>Monthly Expenses</div>
+          <div style={{fontSize:15,fontWeight:700,color:C.red}}>{fmt(monthlyBills)}</div>
+        </div>
+        <div style={{display:"grid",gap:6}}>
+          {student.housing&&(<div style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span style={{color:C.muted}}>Rent</span><span style={{fontWeight:600}}>{fmt(student.housing.monthlyRent)}</span></div>)}
+          {Object.entries(student.bills).map(([k,v])=>v>0&&(<div key={k} style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span style={{color:C.muted}}>{k.charAt(0).toUpperCase()+k.slice(1)}</span><span style={{fontWeight:600}}>{fmt(v)}</span></div>))}
+          {(student.car?student.car.payment:0)>0&&(<div style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span style={{color:C.muted}}>Car payment</span><span style={{fontWeight:600}}>{fmt(student.car.payment)}</span></div>)}
+          {(student.car?student.car.insurance:0)>0&&(<div style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span style={{color:C.muted}}>Insurance</span><span style={{fontWeight:600}}>{fmt(student.car.insurance)}</span></div>)}
+        </div>
+        {student.job&&monthlyBills>0&&(
+          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:12,color:C.muted}}>Monthly surplus</span>
+            <span style={{fontSize:14,fontWeight:700,color:bw*2-monthlyBills>=0?C.green:C.red}}>{fmt(bw*2-monthlyBills)}</span>
+          </div>)}
+      </div>
+      <Card>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>📋 Recent Transactions</div>
+        {recent.length===0?<div style={{color:C.muted,fontSize:14,textAlign:"center",padding:"20px 0"}}>No transactions yet. Get hired and start earning!</div>
+        :recent.map(t=>(
+          <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+C.border}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:600}}>{t.description}</div>
+              <div style={{color:C.muted,fontSize:12}}>{fmtDate(t.date)} · {t.category}</div>
+            </div>
+            <div style={{fontWeight:700,color:t.type==="income"?C.green:C.red,fontSize:15}}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
+          </div>))}
+      </Card>
+    </div>);
+}
+
+function ProfilePanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const td=THRIVELY[student.id];
+  const fileRef=useRef();
+  const handlePhoto=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>onUpdate(s=>({...s,photo:ev.target.result}));r.readAsDataURL(f);};
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <Card color={th.primary}>
+        <div style={{display:"flex",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
+          <div style={{position:"relative"}}>
+            {student.photo?<img src={student.photo} alt="" style={{width:96,height:96,borderRadius:14,objectFit:"cover",border:"3px solid "+th.primary}}/>
+            :<div style={{width:96,height:96,borderRadius:14,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,border:"3px solid "+th.primary}}>{student.emoji}</div>}
+            <button onClick={()=>fileRef.current.click()} style={{position:"absolute",bottom:-8,right:-8,width:28,height:28,borderRadius:"50%",background:th.primary,border:"2px solid "+C.card,color:"#fff",fontSize:13,cursor:"pointer"}}>📷</button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:22,fontWeight:900}}>{student.name}</div>
+            <div style={{color:C.muted,fontSize:14,marginBottom:10}}>{student.profile.grade}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Tag color={th.primary}>⚡ {td.profile}</Tag>
+              {td.passionScore&&<Tag color={C.pink}>🔥 Passion Score: {td.passionScore}</Tag>}
+            </div>
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:14,color:th.primary}}>🌟 Thrively Strengths Profile</div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>TOP 5 STRENGTHS</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{td.top5.map((s,i)=><Tag key={s} color={i===0?th.primary:C.muted}>{i===0?"⭐ ":""}{s}</Tag>)}</div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:6}}>RIASEC PERSONALITY TYPE</div>
+          <div style={{fontSize:14,color:"#fff"}}>{td.riasec}</div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>HABITS OF MIND</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{td.habits.map(h=><Tag key={h} color={C.purple}>{h}</Tag>)}</div>
+        </div>
+        <div>
+          <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>CAREER ASPIRATIONS</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{td.aspirations.map(a=><Tag key={a} color={C.amber}>{a}</Tag>)}</div>
+        </div>
+      </Card>
+      <div>
+        <div style={{fontSize:16,fontWeight:700,marginBottom:12,color:th.primary}}>⚡ Your 7 Personal Growth Strategies</div>
+        <div style={{display:"grid",gap:12}}>
+          {td.strategies.map((st,i)=>(
+            <Card key={i} color={th.primary} style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+              <div style={{fontSize:26,width:46,height:46,borderRadius:12,background:th.primary+"22",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{st.icon}</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:14,color:th.primary,marginBottom:4}}>{st.title}</div>
+                <div style={{fontSize:13,color:"#ccc",lineHeight:1.6}}>{st.body}</div>
+              </div>
+            </Card>))}
+        </div>
+      </div>
+    </div>);
+}
+
+const JOB_OPTIONS=[
+  {value:"",label:"-- Select a career path --"},
+  {value:"Junior Veterinary Assistant|Animal Care Clinic|32000",label:"Junior Veterinary Assistant – $32,000/yr"},
+  {value:"Game Design Intern|SparkTech Studios|35000",label:"Game Design Intern – $35,000/yr"},
+  {value:"NASA Junior Researcher|NASA Education Center|38000",label:"NASA Junior Researcher – $38,000/yr"},
+  {value:"Agricultural Science Intern|GreenFarm Labs|30000",label:"Agricultural Science Intern – $30,000/yr"},
+  {value:"Junior Pastry Chef|The Sweet Spot Bakery|34000",label:"Junior Pastry Chef – $34,000/yr"},
+  {value:"Legal Research Assistant|Justice & Associates|36000",label:"Legal Research Assistant – $36,000/yr"},
+  {value:"Junior Car Designer|Future Motors Design Studio|40000",label:"Junior Car Designer – $40,000/yr"},
+  {value:"Music Production Assistant|Harmony Studios|33000",label:"Music Production Assistant – $33,000/yr"},
+  {value:"Photography Assistant|Lens & Light Studio|31000",label:"Photography Assistant – $31,000/yr"},
+  {value:"Agricultural Inspector Trainee|USDA Extension Office|32000",label:"Agricultural Inspector Trainee – $32,000/yr"},
+  {value:"Junior Fashion Model|Spark Talent Agency|35000",label:"Junior Fashion Model – $35,000/yr"},
+  {value:"custom",label:"✏️ Custom career (fill in below)"},
+];
+
+function CareerPanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const [sel,setSel]=useState("");
+  const [cTitle,setCTitle]=useState("");
+  const [cEmployer,setCEmployer]=useState("");
+  const [cSalary,setCSalary]=useState("");
+  const [coverLetter,setCoverLetter]=useState("");
+
+  const submitApp=()=>{
+    let title,employer,salary;
+    if(sel==="custom"){
+      if(!cTitle||!cEmployer||!cSalary)return alert("Fill in all fields");
+      title=cTitle;employer=cEmployer;salary=parseInt(cSalary);
+    } else {
+      const[t,e,s]=sel.split("|");title=t;employer=e;salary=parseInt(s);
+    }
+    onUpdate(s=>({...s,jobApplication:{title,employer,salary,coverLetter,appliedDate:todayStr()},jobStatus:"applied"}));
+  };
+
+  if(student.jobStatus==="hired"&&student.job){
+    const bw=Math.round(student.job.salary/26);
+    return(
+      <div style={{display:"grid",gap:14}}>
+        <div style={{background:C.card,border:"1px solid "+C.green+"30",borderLeft:"3px solid "+C.green,borderRadius:10,padding:18}}>
+          <div style={{fontSize:11,color:C.green,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>EMPLOYED</div>
+          <div style={{fontSize:22,fontWeight:800,marginBottom:2}}>{student.job.title}</div>
+          <div style={{color:C.muted,fontSize:14,marginBottom:14}}>{student.job.employer}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {[{l:"Annual Salary",v:fmt(student.job.salary),c:"#fff"},{l:"Per Paycheck",v:fmt(bw),c:C.green},{l:"Start Date",v:fmtDate(student.job.startDate),c:C.muted}].map(x=>(
+              <div key={x.l} style={{background:C.card2,borderRadius:8,padding:"12px 10px",textAlign:"center"}}>
+                <div style={{fontSize:10,color:C.muted,fontWeight:600,letterSpacing:"0.06em",marginBottom:4}}>{x.l}</div>
+                <div style={{fontSize:14,fontWeight:700,color:x.c}}>{x.v}</div>
+              </div>))}
+          </div>
+        </div>
+        <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"14px 18px"}}>
+          <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em"}}>
+            Next step: set up your housing and vehicle in the <strong style={{color:th.primary}}>Life</strong> tab →
+          </div>
+        </div>
+      </div>);
+  }
+
+  if(student.jobStatus==="applied"){
+    return(
+      <div style={{display:"grid",gap:14}}>
+        <div style={{background:C.card,border:"1px solid "+C.amber+"30",borderLeft:"3px solid "+C.amber,borderRadius:10,padding:18}}>
+          <div style={{fontSize:11,color:C.amber,fontWeight:700,letterSpacing:"0.08em",marginBottom:8}}>UNDER REVIEW</div>
+          <div style={{fontSize:20,fontWeight:800,marginBottom:2}}>{student.jobApplication.title}</div>
+          <div style={{color:C.muted,fontSize:13}}>{student.jobApplication.employer} · Applied {fmtDate(student.jobApplication.appliedDate)}</div>
+          {student.interviewNotes&&(
+            <div style={{marginTop:14,background:C.card2,borderRadius:8,padding:12}}>
+              <div style={{fontSize:11,color:C.cyan,fontWeight:600,marginBottom:6,letterSpacing:"0.05em"}}>TEACHER FEEDBACK</div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{student.interviewNotes}</div>
+            </div>)}
+        </div>
+      </div>);
+  }
+
+  if(student.jobStatus==="rejected"){
+    return(
+      <div style={{display:"grid",gap:14}}>
+        <div style={{background:C.card,border:"1px solid "+C.red+"30",borderLeft:"3px solid "+C.red,borderRadius:10,padding:18}}>
+          <div style={{fontSize:11,color:C.red,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>NOT SELECTED</div>
+          {student.interviewNotes&&<div style={{fontSize:13,color:C.text,lineHeight:1.6,marginBottom:12}}>{student.interviewNotes}</div>}
+          <Btn onClick={()=>onUpdate(s=>({...s,jobStatus:"none",jobApplication:null,interviewNotes:""}))} color={th.primary} small>Apply Again</Btn>
+        </div>
+      </div>);
+  }
+
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:18}}>
+        <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>Job Application</div>
+        <div style={{fontSize:13,color:C.muted,lineHeight:1.6}}>Choose a career that matches your strengths. Write a cover letter that shows why you're the best choice — use your Thrively profile!</div>
+      </div>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:18}}>
+        <Sel label="Career Path" value={sel} onChange={setSel} options={JOB_OPTIONS}/>
+        {sel==="custom"&&(
+          <>
+            <Inp label="Job Title" value={cTitle} onChange={setCTitle} placeholder="e.g. Junior Graphic Designer"/>
+            <Inp label="Employer" value={cEmployer} onChange={setCEmployer} placeholder="e.g. Spark Creative Agency"/>
+            <Inp label="Annual Salary" value={cSalary} onChange={setCSalary} type="number" placeholder="e.g. 35000"/>
+          </>)}
+        <Inp label="Cover Letter" value={coverLetter} onChange={setCoverLetter} multiline rows={7}
+          placeholder={"Dear Hiring Manager,
+
+I am excited to apply because..."}/>
+        <Btn onClick={submitApp} color={th.primary} disabled={!sel||!coverLetter.trim()} style={{width:"100%",padding:"11px"}}>Submit Application</Btn>
+      </div>
+    </div>);
+}
+
+function LifePanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const [hAddr,setHAddr]=useState((student.housing?student.housing.address:"")||"");
+  const [hType,setHType]=useState((student.housing?student.housing.type:"apartment")||"apartment");
+  const [hRent,setHRent]=useState((student.housing?student.housing.monthlyRent:0)||"");
+  const [hNotes,setHNotes]=useState((student.housing?student.housing.notes:"")||"");
+  const [cMake,setCMake]=useState((student.car?student.car.make:"")||"");
+  const [cModel,setCModel]=useState((student.car?student.car.model:"")||"");
+  const [cYear,setCYear]=useState((student.car?student.car.year:"")||"");
+  const [cPrice,setCPrice]=useState((student.car?student.car.purchasePrice:"")||"");
+  const [cPayment,setCPayment]=useState((student.car?student.car.payment:0)||"");
+  const [cInsurance,setCInsurance]=useState((student.car?student.car.insurance:0)||"");
+
+  if(!student.job){
+    return(
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:24,textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:12}}>🔒</div>
+        <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Not unlocked yet</div>
+        <div style={{fontSize:13,color:C.muted,lineHeight:1.7}}>Get hired first, then come here to research housing and set up your transportation budget.</div>
+      </div>);
+  }
+
+  const bw=Math.round(student.job.salary/26);
+  const monthlyIncome=bw*2;
+
+  const saveHousing=()=>{
+    if(!hAddr||!hRent)return alert("Enter an address and monthly rent");
+    const rent=parseFloat(hRent);
+    const isUpdate=!!student.housing;
+    if(!isUpdate){
+      onUpdate(s=>({...s,
+        housing:{address:hAddr,type:hType,monthlyRent:rent,notes:hNotes,researchDate:todayStr()},
+        balance:s.balance-rent,
+        transactions:[...s.transactions,{id:"housing_"+Date.now(),date:todayStr(),type:"expense",category:"Housing",description:"First month rent — "+hAddr,amount:rent}]}));
+    } else {
+      onUpdate(s=>({...s,housing:{address:hAddr,type:hType,monthlyRent:rent,notes:hNotes,researchDate:todayStr()}}));
+    }
+  };
+
+  const saveCar=()=>{
+    const pay=parseFloat(cPayment||0),ins=parseFloat(cInsurance||0),price=parseFloat(cPrice||0);
+    onUpdate(s=>({...s,car:{make:cMake,model:cModel,year:cYear,purchasePrice:price,payment:pay,insurance:ins}}));
+  };
+
+  const rentPct=student.housing?Math.round((student.housing.monthlyRent/monthlyIncome)*100):0;
+  const carPct=student.car?Math.round(((student.car.payment+student.car.insurance)/monthlyIncome)*100):0;
+
+  return(
+    <div style={{display:"grid",gap:14}}>
+
+      {/* Income context bar */}
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em"}}>MONTHLY INCOME</div>
+          <div style={{fontSize:22,fontWeight:800,color:C.green}}>{fmt(monthlyIncome)}</div>
+        </div>
+        <div style={{fontSize:12,color:C.muted,textAlign:"right",lineHeight:1.8}}>
+          Housing target: <strong style={{color:C.text}}>under 30%</strong> ({fmt(monthlyIncome*0.3)}/mo)<br/>
+          Transport target: <strong style={{color:C.text}}>under 15%</strong> ({fmt(monthlyIncome*0.15)}/mo)
+        </div>
+      </div>
+
+      {/* HOUSING */}
+      <div style={{background:C.card,border:"1px solid "+C.border,borderLeft:"3px solid "+th.primary,borderRadius:10,padding:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700}}>Housing</div>
+            <div style={{fontSize:12,color:C.muted}}>Research real listings on Zillow, Apartments.com, or Trulia</div>
+          </div>
+          {student.housing&&(
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:18,fontWeight:800,color:rentPct<=30?C.green:C.red}}>{fmt(student.housing.monthlyRent)}/mo</div>
+              <div style={{fontSize:11,color:rentPct<=30?C.green:C.red}}>{rentPct}% of income {rentPct<=30?"✓":"— too high!"}</div>
+            </div>)}
+        </div>
+        <Inp label="Address or neighborhood (paste real listing)" value={hAddr} onChange={setHAddr} placeholder="e.g. 2BR Apt, Midtown Atlanta — $1,150/mo"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Sel label="Type" value={hType} onChange={setHType} options={[{value:"apartment",label:"Apartment"},{value:"house",label:"House"},{value:"condo",label:"Condo"},{value:"room",label:"Renting a Room"}]}/>
+          <Inp label="Monthly Rent ($)" value={String(hRent)} onChange={setHRent} type="number" placeholder="e.g. 1150"/>
+        </div>
+        <Inp label="Research notes (where'd you find it? why did you pick it?)" value={hNotes} onChange={setHNotes} multiline rows={2} placeholder="Found on Zillow, 2 bed 1 bath, near bus route..."/>
+        <Btn onClick={saveHousing} color={th.primary} style={{width:"100%"}}>
+          {student.housing?"Update Housing":"Save Housing Research"}
+        </Btn>
+      </div>
+
+      {/* CAR */}
+      <div style={{background:C.card,border:"1px solid "+C.border,borderLeft:"3px solid "+th.primary,borderRadius:10,padding:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700}}>Vehicle</div>
+            <div style={{fontSize:12,color:C.muted}}>Research real cars on CarMax, AutoTrader, or Cars.com</div>
+          </div>
+          {(student.car?student.car.make:"")&&(
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:16,fontWeight:700}}>{student.car.make} {student.car.model}</div>
+              <div style={{fontSize:11,color:carPct<=15?C.green:C.red}}>{fmt(student.car.payment+student.car.insurance)}/mo · {carPct}% of income {carPct<=15?"✓":"— high!"}</div>
+            </div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+          <Inp label="Make" value={cMake} onChange={setCMake} placeholder="Toyota"/>
+          <Inp label="Model" value={cModel} onChange={setCModel} placeholder="Corolla"/>
+          <Inp label="Year" value={cYear} onChange={setCYear} placeholder="2022"/>
+        </div>
+        <Inp label="Purchase Price ($) — what does it actually cost?" value={String(cPrice)} onChange={setCPrice} type="number" placeholder="e.g. 22500"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="Monthly Payment ($)" value={String(cPayment)} onChange={setCPayment} type="number" placeholder="e.g. 310"/>
+          <Inp label="Monthly Insurance ($)" value={String(cInsurance)} onChange={setCInsurance} type="number" placeholder="e.g. 150"/>
+        </div>
+        {cPayment&&cInsurance&&(
+          <div style={{background:C.card2,borderRadius:6,padding:"10px 12px",marginBottom:12,fontSize:12}}>
+            <span style={{color:C.muted}}>Total monthly transport cost: </span>
+            <strong style={{color:(parseFloat(cPayment)+parseFloat(cInsurance))/monthlyIncome<=0.15?C.green:C.red}}>
+              {fmt(parseFloat(cPayment||0)+parseFloat(cInsurance||0))} ({Math.round(((parseFloat(cPayment||0)+parseFloat(cInsurance||0))/monthlyIncome)*100)}% of income)
+            </strong>
+          </div>)}
+        <Btn onClick={saveCar} color={th.primary} style={{width:"100%"}}>
+          {(student.car?student.car.make:"")?"Update Vehicle":"Save Vehicle Research"}
+        </Btn>
+      </div>
+    </div>);
+}
+
+
+function FinancesPanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const [expDesc,setExpDesc]=useState("");
+  const [eAmt,setEAmt]=useState("");
+  const [eCat,setECat]=useState("Groceries");
+  const [tab,setTab]=useState("transactions");
+  const addExpense=()=>{
+    const amt=parseFloat(eAmt);if(!expDesc||isNaN(amt)||amt<=0)return;
+    onUpdate(s=>({...s,balance:s.balance-amt,transactions:[...s.transactions,{id:"exp_"+Date.now(),date:todayStr(),type:"expense",category:eCat,description:expDesc,amount:amt}]}));
+    setExpDesc("");setEAmt("");
+  };
+  const sorted=[...student.transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  const totalIn=sorted.filter(t=>t.type==="income").reduce((a,t)=>a+t.amount,0);
+  const totalOut=sorted.filter(t=>t.type==="expense").reduce((a,t)=>a+t.amount,0);
+  const cats=["Groceries","Gas","Clothing","Entertainment","Dining Out","Healthcare","Personal Care","Transportation","Other"];
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+        {[{label:"Total Earned",value:totalIn,color:C.green},{label:"Total Spent",value:totalOut,color:C.red},{label:"Net Balance",value:student.balance,color:student.balance>=0?C.green:C.red}].map(x=>(
+          <Card key={x.label} style={{textAlign:"center",padding:"14px 8px"}}>
+            <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:4}}>{x.label}</div>
+            <div style={{fontSize:16,fontWeight:800,color:x.color}}>{fmt(x.value)}</div>
+          </Card>))}
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {["transactions","bills","add"].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:"8px 16px",borderRadius:20,background:tab===t?th.primary:C.card2,border:"1px solid "+(tab===t?th.primary:C.border),color:tab===t?"#fff":C.muted,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+            {t==="transactions"?"📋 History":t==="bills"?"💡 Bills":"➕ Add Expense"}
+          </button>))}
+      </div>
+      {tab==="transactions"&&(
+        <Card>
+          {sorted.length===0?<div style={{color:C.muted,textAlign:"center",padding:"24px 0"}}>No transactions yet.</div>
+          :sorted.map(t=>(
+            <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid "+C.border}}>
+              <div><div style={{fontSize:14,fontWeight:600}}>{t.description}</div><div style={{color:C.muted,fontSize:12}}>{fmtDate(t.date)} · {t.category}</div></div>
+              <div style={{fontWeight:700,color:t.type==="income"?C.green:C.red,fontSize:15,flexShrink:0}}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
+            </div>))}
+        </Card>)}
+      {tab==="bills"&&(
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14,color:th.primary}}>Monthly Bills — Edit to update</div>
+          {Object.entries(student.bills).map(([k,v])=>(
+            <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:14}}>{k==="electricity"?"⚡":k==="water"?"💧":k==="internet"?"🌐":k==="phone"?"📱":"🎬"} {k.charAt(0).toUpperCase()+k.slice(1)}</div>
+              <input type="number" value={v} onChange={e=>onUpdate(s=>({...s,bills:{...s.bills,[k]:parseFloat(e.target.value)||0}}))}
+                style={{width:90,background:C.card2,border:"1px solid "+C.border,borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:14,textAlign:"right"}}/>
+            </div>))}
+          <div style={{borderTop:"1px solid "+C.border,paddingTop:12,display:"flex",justifyContent:"space-between",fontWeight:700}}>
+            <span>Total Bills/mo</span><span style={{color:C.red}}>{fmt(Object.values(student.bills).reduce((a,b)=>a+b,0))}</span>
+          </div>
+        </Card>)}
+      {tab==="add"&&(
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14,color:th.primary}}>Log an Expense</div>
+          <Sel label="Category" value={eCat} onChange={setECat} options={cats.map(c=>({value:c,label:c}))}/>
+          <Inp label="Description" value={expDesc} onChange={setExpDesc} placeholder="e.g. Weekly groceries at Walmart"/>
+          <Inp label="Amount ($)" value={eAmt} onChange={setEAmt} type="number" placeholder="e.g. 65.00"/>
+          <Btn onClick={addExpense} color={th.primary} style={{width:"100%"}} disabled={!expDesc||!eAmt}>Log Expense</Btn>
+        </Card>)}
+    </div>);
+}
+
+function BlogPanel({student,state,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const schedule=getTodaySchedule();
+  const [resp,setResp]=useState("");
+  const [mood,setMood]=useState("😊");
+  const moods=["😊","😤","😢","😎","🤔","🔥","😅","💪"];
+  const today=todayStr();
+  const sorted=[...state.blogPrompts].filter(p=>p.date<=today).sort((a,b)=>b.date.localeCompare(a.date));
+  const prompt=state.blogPrompts.find(p=>p.date===today)||sorted[0];
+  const alreadyAnswered=prompt&&student.blogResponses.some(r=>r.promptId===prompt.id);
+
+  const submit=()=>{
+    if(!resp.trim())return;
+    onUpdate(s=>({...s,blogResponses:[...s.blogResponses,{id:"blog_"+Date.now(),promptId:(prompt?prompt.id:null),date:today,question:(prompt?prompt.question:null),response:resp,mood}]}));
+    setResp("");
+  };
+
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{fontSize:15,fontWeight:700}}>Blog</div>
+          <Tag color={schedule.type==="blog"?C.cyan:C.muted}>{schedule.type==="blog"?"Today: Blog Day":"Next blog coming soon"}</Tag>
+        </div>
+        <div style={{fontSize:12,color:C.muted}}>Respond to the prompt below, then read back through your past entries.</div>
+      </div>
+
+      {prompt&&(
+        <div style={{background:C.card,border:"1px solid "+(schedule.type==="blog"?C.cyan+"40":C.border),borderLeft:"3px solid "+(schedule.type==="blog"?C.cyan:C.border),borderRadius:10,padding:18}}>
+          {prompt.topic&&<div style={{fontSize:11,color:C.cyan,fontWeight:600,letterSpacing:"0.08em",marginBottom:8}}>{prompt.topic.toUpperCase()}</div>}
+          <div style={{fontSize:16,fontWeight:600,lineHeight:1.6,marginBottom:16,color:C.text}}>"{prompt.question}"</div>
+          {alreadyAnswered?(
+            <div style={{fontSize:13,color:C.green,fontWeight:600}}>✓ You responded to this prompt</div>
+          ):(
+            <>
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em",marginBottom:8}}>HOW ARE YOU FEELING?</div>
+                <div style={{display:"flex",gap:6}}>{moods.map(m=><button key={m} onClick={()=>setMood(m)} style={{fontSize:20,background:mood===m?C.card2:"transparent",border:"1px solid "+(mood===m?C.border:"transparent"),borderRadius:6,padding:"4px 6px",cursor:"pointer"}}>{m}</button>)}</div>
+              </div>
+              <Inp label="Your Response" value={resp} onChange={setResp} multiline rows={6} placeholder="Write your honest thoughts..."/>
+              <Btn onClick={submit} color={th.primary} disabled={!resp.trim()} style={{width:"100%",padding:"11px"}}>Submit Response</Btn>
+            </>)}
+        </div>)}
+
+      {student.blogResponses.length>0&&(
+        <div>
+          <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em",marginBottom:10,padding:"0 2px"}}>PAST RESPONSES</div>
+          {[...student.blogResponses].reverse().map(e=>(
+            <div key={e.id} style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                <div style={{fontSize:11,color:C.muted}}>{fmtDate(e.date)}</div>
+                <div style={{fontSize:18}}>{e.mood}</div>
+              </div>
+              {e.question&&<div style={{fontSize:12,color:C.muted,marginBottom:6,fontStyle:"italic",lineHeight:1.5}}>"{e.question}"</div>}
+              <div style={{fontSize:13,color:C.text,lineHeight:1.7}}>{e.response}</div>
+            </div>))}
+        </div>)}
+    </div>);
+}
+
+function VlogsPanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const schedule=getTodaySchedule();
+  const [reflection,setReflection]=useState("");
+
+  const save=()=>{
+    if(!reflection.trim())return alert("Add a written reflection before saving.");
+    onUpdate(s=>({...s,vlogs:[...s.vlogs,{id:"vlog_"+Date.now(),date:todayStr(),reflection,hasVideo:false}]}));
+    setReflection("");
+  };
+
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700}}>Video Journal</div>
+            <div style={{fontSize:12,color:C.muted}}>Record your vlog on your own device, then write your reflection here to save it.</div>
+          </div>
+          <Tag color={schedule.type==="vlog"?C.pink:C.muted}>{schedule.type==="vlog"?"Today: Vlog Day":""}</Tag>
+        </div>
+      </div>
+
+      {/* Reflection entry */}
+      <div style={{background:C.card,border:"1px solid "+C.border,borderLeft:"3px solid "+th.primary,borderRadius:10,padding:18}}>
+        <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em",marginBottom:12}}>NEW ENTRY</div>
+        <div style={{background:C.card2,border:"1px solid "+C.border,borderRadius:8,padding:"12px 14px",marginBottom:14,fontSize:13,color:C.muted,lineHeight:1.7}}>
+          🎥 <strong style={{color:C.text}}>Record your vlog first</strong>, then come back here and write your reflection to log it.
+        </div>
+        <Inp label="Written Reflection" value={reflection} onChange={setReflection} multiline rows={5}
+          placeholder="What happened this week? How are you feeling about your money situation? What did you talk about in your vlog? What's your plan going forward?"/>
+        <Btn onClick={save} color={th.primary} disabled={!reflection.trim()} style={{width:"100%",padding:"11px"}}>Save Entry</Btn>
+      </div>
+
+      {/* Past entries */}
+      {student.vlogs.length>0&&(
+        <div>
+          <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.06em",marginBottom:10,padding:"0 2px"}}>PAST ENTRIES — {student.vlogs.length} total</div>
+          {[...student.vlogs].reverse().map(v=>(
+            <div key={v.id} style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:16,marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:11,color:C.muted}}>{fmtDate(v.date)}</div>
+                {v.hasVideo&&<Tag color={C.pink}>Video saved</Tag>}
+              </div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.7}}>{v.reflection}</div>
+            </div>))}
+        </div>)}
+    </div>);
+}
+
+
+function CalendarPanel({student,onUpdate}){
+  const th=THEMES[student.themeIdx];
+  const [date,setDate]=useState("");
+  const [per,setPer]=useState("");
+  const [top,setTop]=useState("");
+  const [no,setNo]=useState("");
+  const submit=()=>{
+    if(!date||!per)return;
+    onUpdate(s=>({...s,interviewRequests:[...s.interviewRequests,{id:"int_"+Date.now(),date,requestedWith:per,topic:top,note:no,status:"pending",requestedDate:todayStr()}]}));
+    setDate("");setPer("");setTop("");setNo("");alert("Interview request sent to Ms. J! ✅");
+  };
+  const sorted=[...student.interviewRequests].sort((a,b)=>a.date.localeCompare(b.date));
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <Card color={th.primary}>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>📅 Schedule a Professional Interview</div>
+        <div style={{color:C.muted,fontSize:13}}>Request to speak with a real professional in your field of interest!</div>
+      </Card>
+      <Card>
+        <Inp label="Preferred Date" value={date} onChange={setDate} type="date"/>
+        <Inp label="Who would you like to interview?" value={per} onChange={setPer} placeholder="e.g. Dr. Smith – Veterinarian"/>
+        <Inp label="Topic / Career Focus" value={top} onChange={setTop} placeholder="e.g. Day in the life, salary, education path"/>
+        <Inp label="Additional Notes" value={no} onChange={setNo} multiline rows={2} placeholder="Any specific questions or details..."/>
+        <Btn onClick={submit} color={th.primary} disabled={!date||!per} style={{width:"100%"}}>Request Interview 📧</Btn>
+      </Card>
+      {sorted.length>0&&(
+        <div>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>Your Interview Requests</div>
+          {sorted.map(r=>(
+            <Card key={r.id} style={{marginBottom:10}} color={r.status==="confirmed"?C.green:r.status==="declined"?C.red:C.amber}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div>
+                  <div style={{fontWeight:700}}>{r.requestedWith}</div>
+                  <div style={{color:C.muted,fontSize:13}}>📅 {fmtDate(r.date)}</div>
+                  {r.topic&&<div style={{fontSize:13,color:"#ccc",marginTop:4}}>{r.topic}</div>}
+                  {r.teacherNote&&<div style={{fontSize:13,color:C.cyan,marginTop:6}}>Ms. J: {r.teacherNote}</div>}
+                </div>
+                <Tag color={r.status==="confirmed"?C.green:r.status==="declined"?C.red:C.amber}>
+                  {r.status==="confirmed"?"✅ Confirmed":r.status==="declined"?"❌ Declined":"⏳ Pending"}
+                </Tag>
+              </div>
+            </Card>))}
+        </div>)}
+    </div>);
+}
+
+function StudentDashboard({student,state,paycheckAlert,onClearAlert,onUpdate,onLogout}){
+  const [tab,setTab]=useState("home");
+  const th=THEMES[student.themeIdx];
+  const schedule=getTodaySchedule();
+  const tabs=[{id:"home",label:"Home"},{id:"profile",label:"Profile"},{id:"career",label:"Career"},{id:"life",label:"Life"},{id:"money",label:"Money"},{id:"blog",label:"Blog"},{id:"vlogs",label:"Vlogs"},{id:"schedule",label:"Schedule"},{id:"share",label:"Share"}];
+  return(
+    <div style={{minHeight:"100vh",background:C.dark}}>
+      {paycheckAlert&&<PaycheckAlert amount={paycheckAlert.amount} onClose={onClearAlert}/>}
+      <div style={{position:"sticky",top:0,zIndex:100,background:C.card+"ee",backdropFilter:"blur(12px)",borderBottom:"1px solid "+th.primary+"33",padding:"12px 20px",display:"flex",alignItems:"center",gap:14}}>
+        {student.photo?<img src={student.photo} alt="" style={{width:40,height:40,borderRadius:10,objectFit:"cover",border:"2px solid "+th.primary}}/>
+        :<div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{student.emoji}</div>}
+        <div style={{flex:1}}>
+          <div style={{fontWeight:800,fontSize:15}}>{student.name}</div>
+          <div style={{fontSize:12,color:C.muted}}>{student.profile.grade} · {THRIVELY[student.id].profile}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:16,fontWeight:800,color:student.balance>=0?C.green:C.red}}>{fmt(student.balance)}</div>
+          <div style={{fontSize:11,color:C.muted}}>balance</div>
+        </div>
+        <button onClick={onLogout} style={{background:"transparent",color:C.muted,fontSize:20,padding:"4px 8px"}}>←</button>
+      </div>
+      <div style={{padding:"20px 16px",maxWidth:680,margin:"0 auto",paddingBottom:100}}>
+        <div className="fade-in" key={tab}>
+          {tab==="home"&&<HomePanel student={student} state={state}/>}
+          {tab==="profile"&&<ProfilePanel student={student} onUpdate={onUpdate}/>}
+          {tab==="career"&&<CareerPanel student={student} onUpdate={onUpdate}/>}
+          {tab==="life"&&<LifePanel student={student} onUpdate={onUpdate}/>}
+          {tab==="money"&&<FinancesPanel student={student} onUpdate={onUpdate}/>}
+          {tab==="blog"&&<BlogPanel student={student} state={state} onUpdate={onUpdate}/>}
+          {tab==="vlogs"&&<VlogsPanel student={student} onUpdate={onUpdate}/>}
+          {tab==="schedule"&&<CalendarPanel student={student} onUpdate={onUpdate}/>}
+          {tab==="share"&&<ShareProgress student={student}/>}
+        </div>
+      </div>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:C.card+"f0",backdropFilter:"blur(12px)",borderTop:"1px solid "+C.border,display:"flex"}}>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"10px 2px 8px",background:"transparent",color:tab===t.id?th.primary:C.muted,fontSize:9,fontWeight:tab===t.id?700:400,borderTop:tab===t.id?"2px solid "+th.primary:"2px solid transparent",letterSpacing:"0.03em"}}>
+            {t.label}
+          </button>))}
+      </div>
+    </div>);
+}
+
+function TeacherOverview({state,save}){
+  const [selected,setSelected]=useState(null);
+  const [expense,setExpense]=useState({amount:"",desc:"",cat:"Surprise Expense"});
+  const addExpense=sid=>{
+    const amt=parseFloat(expense.amount);if(!amt||!expense.desc)return;
+    save({...state,students:state.students.map(s=>s.id!==sid?s:{...s,balance:s.balance-amt,transactions:[...s.transactions,{id:"surp_"+Date.now(),date:todayStr(),type:"expense",category:expense.cat,description:"⚠️ "+expense.desc,amount:amt}]})});
+    setExpense({amount:"",desc:"",cat:"Surprise Expense"});setSelected(null);alert("Expense added!");
+  };
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <Card color={C.cyan} style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontWeight:800,fontSize:17}}>📊 Student Overview</div>
+          <div style={{color:C.muted,fontSize:13}}>{state.students.filter(s=>s.job).length}/{state.students.length} students hired · {getRemainingDays()} school days left</div>
+        </div>
+        <Tag color={C.amber}>Today: {getTodaySchedule().type.toUpperCase()} DAY #{getTodaySchedule().dayNum}</Tag>
+      </Card>
+      {state.students.map(s=>{
+        const th=THEMES[s.themeIdx];const pending=pendingPaychecks(s);
+        return(
+          <Card key={s.id} color={th.primary}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              {s.photo?<img src={s.photo} alt="" style={{width:46,height:46,borderRadius:10,objectFit:"cover",border:"2px solid "+th.primary}}/>
+              :<div style={{width:46,height:46,borderRadius:10,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{s.emoji}</div>}
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800}}>{s.name}</div>
+                <div style={{fontSize:12,color:C.muted}}>{s.profile.grade} · {THRIVELY[s.id].profile}</div>
+              </div>
+              <div style={{fontWeight:800,color:s.balance>=0?C.green:C.red,fontSize:18}}>{fmt(s.balance)}</div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+              <Tag color={s.jobStatus==="hired"?C.green:s.jobStatus==="applied"?C.amber:C.muted}>{s.jobStatus==="hired"?"✅ "+(s.job?s.job.title:""):s.jobStatus==="applied"?"⏳ "+(s.jobApplication?s.jobApplication.title:""):s.jobStatus==="rejected"?"❌ Rejected":"🔍 Job Hunting"}</Tag>
+              {s.housing&&<Tag color={C.cyan}>🏠 {fmt(s.housing.monthlyRent)}/mo</Tag>}
+              {pending.length>0&&<Tag color={C.red}>⚠️ {pending.length} paycheck(s) not yet issued</Tag>}
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <Btn small outline color={th.primary} onClick={()=>setSelected({sid:s.id})}>⚠️ Add Expense</Btn>
+              <div style={{fontSize:12,color:C.muted}}>📝 {s.blogResponses.length} blogs · 🎥 {s.vlogs.length} vlogs · 📅 {s.interviewRequests.length} interviews</div>
+            </div>
+          </Card>);})}
+      {selected&&(()=>{
+        const s=state.students.find(x=>x.id===selected.sid);const th=THEMES[s.themeIdx];
+        return(
+          <Modal onClose={()=>setSelected(null)} title={"⚠️ Add Expense for "+s.name}>
+            <Sel label="Category" value={expense.cat} onChange={v=>setExpense(e=>({...e,cat:v}))} options={[{value:"Surprise Expense",label:"Surprise Expense"},{value:"Medical",label:"Medical Bill"},{value:"Car Repair",label:"Car Repair"},{value:"Fine",label:"Fine / Penalty"},{value:"Emergency",label:"Emergency"},{value:"Other",label:"Other"}]}/>
+            <Inp label="Description" value={expense.desc} onChange={v=>setExpense(e=>({...e,desc:v}))} placeholder="e.g. Car tire blew out!"/>
+            <Inp label="Amount ($)" value={expense.amount} onChange={v=>setExpense(e=>({...e,amount:v}))} type="number" placeholder="e.g. 250"/>
+            <Btn onClick={()=>addExpense(selected.sid)} color={C.red} style={{width:"100%"}}>Add to {s.name}</Btn>
+          </Modal>);})()}
+    </div>);
+}
+
+function ApplicationsPanel({state,save}){
+  const [notes,setNotes]=useState({});
+  const applicants=state.students.filter(s=>s.jobStatus==="applied");
+  const hired=state.students.filter(s=>s.jobStatus==="hired");
+  const rejected=state.students.filter(s=>s.jobStatus==="rejected");
+  const approve=s=>{const a=s.jobApplication;save({...state,students:state.students.map(x=>x.id!==s.id?x:{...x,jobStatus:"hired",interviewNotes:notes[s.id]||"",job:{title:a.title,employer:a.employer,salary:a.salary,startDate:todayStr()},jobApplication:null})});};
+  const reject=s=>{save({...state,students:state.students.map(x=>x.id!==s.id?x:{...x,jobStatus:"rejected",interviewNotes:notes[s.id]||""})});};
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <Card color={C.amber}><div style={{fontWeight:700,fontSize:16}}>💼 Job Applications</div><div style={{color:C.muted,fontSize:13}}>Review, add notes, approve or reject.</div></Card>
+      {applicants.length===0&&<Card><div style={{color:C.muted,textAlign:"center",padding:"20px 0"}}>No pending applications! ✅</div></Card>}
+      {applicants.map(s=>{
+        const th=THEMES[s.themeIdx];const a=s.jobApplication;
+        return(
+          <Card key={s.id} color={th.primary}>
+            <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+              <div style={{width:42,height:42,borderRadius:10,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{s.emoji}</div>
+              <div>
+                <div style={{fontWeight:800}}>{s.name}</div>
+                <div style={{color:th.primary,fontSize:14,fontWeight:600}}>{a.title}</div>
+                <div style={{color:C.muted,fontSize:13}}>@ {a.employer} · {fmt(a.salary)}/yr</div>
+              </div>
+            </div>
+            {a.coverLetter&&<div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12}}><div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:6}}>COVER LETTER</div><div style={{fontSize:13,lineHeight:1.7,color:"#ddd",whiteSpace:"pre-wrap"}}>{a.coverLetter}</div></div>}
+            <Inp label="Feedback Notes (student will see this)" value={notes[s.id]||""} onChange={v=>setNotes(n=>({...n,[s.id]:v}))} multiline rows={2} placeholder="e.g. Great application! We'd like to offer you the position..."/>
+            <div style={{display:"flex",gap:10}}><Btn onClick={()=>approve(s)} color={C.green} style={{flex:1}}>✅ Approve & Hire</Btn><Btn onClick={()=>reject(s)} color={C.red} outline style={{flex:1}}>❌ Reject</Btn></div>
+          </Card>);})}
+      {hired.length>0&&(<><div style={{fontWeight:700,fontSize:14,color:C.muted,marginTop:8}}>✅ Hired Students</div>{hired.map(s=><Card key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><strong>{s.name}</strong><br/><span style={{color:C.green,fontSize:13}}>{(s.job?s.job.title:"")}</span></div><Tag color={C.green}>{fmt((s.job?s.job.salary:0)||0)}/yr</Tag></Card>)}</>)}
+      {rejected.length>0&&(<><div style={{fontWeight:700,fontSize:14,color:C.muted,marginTop:8}}>❌ Rejected</div>{rejected.map(s=><Card key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><strong>{s.name}</strong><Btn small color={C.amber} onClick={()=>save({...state,students:state.students.map(x=>x.id!==s.id?x:{...x,jobStatus:"none",jobApplication:null,interviewNotes:""})})}>Allow Reapply</Btn></Card>)}</>)}
+    </div>);
+}
+
+function BlogPanelTeacher({state,save}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [newP,setNewP]=useState({date:"",topic:"",question:""});
+  const addPrompt=()=>{if(!newP.date||!newP.question)return;save({...state,blogPrompts:[...state.blogPrompts,{id:"p_"+Date.now(),...newP}]});setNewP({date:"",topic:"",question:""});setShowAdd(false);};
+  const del=id=>save({...state,blogPrompts:state.blogPrompts.filter(p=>p.id!==id)});
+  const sorted=[...state.blogPrompts].sort((a,b)=>a.date.localeCompare(b.date));
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontWeight:700,fontSize:16,color:C.cyan}}>📝 Blog Prompts</div><Btn small onClick={()=>setShowAdd(true)} color={C.cyan}>+ Add Prompt</Btn></div>
+      {sorted.map(p=>{
+        const responses=state.students.flatMap(s=>s.blogResponses.filter(r=>r.promptId===p.id));
+        const dayN=getSchoolDayNumber(p.date);
+        return(
+          <Card key={p.id} color={dayN>0&&dayN%2===1?C.cyan:undefined}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+              <div>
+                <div style={{display:"flex",gap:8,marginBottom:6,flexWrap:"wrap"}}><Tag color={C.cyan}>{fmtDate(p.date)}</Tag>{p.topic&&<Tag color={C.purple}>{p.topic}</Tag>}<Tag color={C.muted}>Day #{dayN}</Tag></div>
+                <div style={{fontSize:14,lineHeight:1.6}}>{p.question}</div>
+              </div>
+              <button onClick={()=>del(p.id)} style={{background:"transparent",color:C.muted,fontSize:16,marginLeft:8,flexShrink:0}}>🗑</button>
+            </div>
+            {responses.length>0&&(
+              <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+C.border}}>
+                <div style={{fontSize:12,color:C.muted,marginBottom:6}}>RESPONSES ({responses.length}/{state.students.length})</div>
+                {responses.map(r=>{const stu=state.students.find(s=>s.blogResponses.some(br=>br.id===r.id));return(
+                  <div key={r.id} style={{background:C.card2,borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+                    <div style={{fontSize:12,fontWeight:700,color:THEMES[(stu?stu.themeIdx:0)||0].primary,marginBottom:4}}>{r.mood} {(stu?stu.name:"")} · {fmtDate(r.date)}</div>
+                    <div style={{fontSize:13,color:"#ccc",lineHeight:1.6}}>{r.response}</div>
+                  </div>);})}
+              </div>)}
+          </Card>);})}
+      {showAdd&&(
+        <Modal onClose={()=>setShowAdd(false)} title="Add Blog Prompt">
+          <Inp label="Date" value={newP.date} onChange={v=>setNewP(p=>({...p,date:v}))} type="date"/>
+          <Inp label="Topic Label" value={newP.topic} onChange={v=>setNewP(p=>({...p,topic:v}))} placeholder="e.g. Budget Challenges"/>
+          <Inp label="Question / Prompt" value={newP.question} onChange={v=>setNewP(p=>({...p,question:v}))} multiline rows={4} placeholder="Write a thoughtful question for students..."/>
+          <div style={{display:"flex",gap:10}}><Btn onClick={addPrompt} color={C.cyan} style={{flex:1}}>Add Prompt</Btn><Btn onClick={()=>setShowAdd(false)} outline color={C.muted} style={{flex:1}}>Cancel</Btn></div>
+        </Modal>)}
+    </div>);
+}
+
+function InterviewManager({state,save}){
+  const allReqs=state.students.flatMap(s=>s.interviewRequests.map(r=>({...r,studentId:s.id,studentName:s.name}))).sort((a,b)=>a.date.localeCompare(b.date));
+  const respond=(sid,rid,status,teacherNote="")=>{save({...state,students:state.students.map(s=>s.id!==sid?s:{...s,interviewRequests:s.interviewRequests.map(r=>r.id!==rid?r:{...r,status,teacherNote})})});};
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <Card color={C.purple}><div style={{fontWeight:700,fontSize:16}}>📅 Interview Requests</div><div style={{color:C.muted,fontSize:13}}>Approve or decline student interview scheduling requests.</div></Card>
+      {allReqs.length===0&&<Card><div style={{color:C.muted,textAlign:"center",padding:"20px 0"}}>No interview requests yet.</div></Card>}
+      {allReqs.map(r=>{
+        const s=state.students.find(x=>x.id===r.studentId);const th=THEMES[s.themeIdx];
+        return(
+          <Card key={r.id} color={th.primary}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+              <div>
+                <div style={{fontWeight:700}}>{r.studentName}</div>
+                <div style={{color:th.primary,fontSize:14}}>Wants to interview: <strong>{r.requestedWith}</strong></div>
+                <div style={{color:C.muted,fontSize:13}}>📅 {fmtDate(r.date)}</div>
+                {r.topic&&<div style={{fontSize:13,color:"#ccc",marginTop:4}}>Topic: {r.topic}</div>}
+              </div>
+              <Tag color={r.status==="confirmed"?C.green:r.status==="declined"?C.red:C.amber}>{r.status==="confirmed"?"✅":r.status==="declined"?"❌":"⏳"}</Tag>
+            </div>
+            {r.status==="pending"&&(
+              <div style={{display:"flex",gap:8}}>
+                <Btn small color={C.green} onClick={()=>respond(r.studentId,r.id,"confirmed","Interview confirmed! Check your schedule.")}>✅ Confirm</Btn>
+                <Btn small outline color={C.red} onClick={()=>respond(r.studentId,r.id,"declined","This one couldn't be arranged. Try a different date or contact.")}>❌ Decline</Btn>
+              </div>)}
+          </Card>);})}
+    </div>);
+}
+
+function TeacherDashboard({state,save,onLogout}){
+  const [tab,setTab]=useState("overview");
+  const pendingApps=state.students.filter(s=>s.jobStatus==="applied").length;
+  const pendingInts=state.students.flatMap(s=>s.interviewRequests).filter(r=>r.status==="pending").length;
+  const tabs=[{id:"overview",icon:"📊",label:"Overview"},{id:"apps",icon:"💼",label:"Applications",badge:pendingApps},{id:"blog",icon:"📝",label:"Blog Prompts"},{id:"interviews",icon:"📅",label:"Interviews",badge:pendingInts},{id:"import",icon:"📥",label:"Import"}];
+  return(
+    <div style={{minHeight:"100vh",background:C.dark}}>
+      <div style={{background:C.card+"ee",backdropFilter:"blur(12px)",borderBottom:"1px solid "+C.cyan+"33",padding:"14px 20px",display:"flex",alignItems:"center",gap:14,position:"sticky",top:0,zIndex:100}}>
+        <div style={{fontSize:26}}>👩‍🏫</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:800,fontSize:16,background:"linear-gradient(90deg,"+C.cyan+","+C.pink+")",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>The Spark Hub Collective</div>
+          <div style={{color:C.muted,fontSize:12}}>{state.teacherName} · Teacher Dashboard</div>
+        </div>
+        <button onClick={onLogout} style={{background:"transparent",color:C.muted,fontSize:20}}>←</button>
+      </div>
+      <div style={{padding:"20px 16px",maxWidth:720,margin:"0 auto",paddingBottom:100}}>
+        <div className="fade-in" key={tab}>
+          {tab==="overview"&&<TeacherOverview state={state} save={save}/>}
+          {tab==="apps"&&<ApplicationsPanel state={state} save={save}/>}
+          {tab==="blog"&&<BlogPanelTeacher state={state} save={save}/>}
+          {tab==="interviews"&&<InterviewManager state={state} save={save}/>}
+          {tab==="import"&&<StudentImportPanel state={state} save={save}/>}
+        </div>
+      </div>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:C.card+"f0",backdropFilter:"blur(12px)",borderTop:"1px solid "+C.border,display:"flex"}}>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"10px 4px",background:"transparent",color:tab===t.id?C.cyan:C.muted,fontSize:10,fontWeight:tab===t.id?800:500,borderTop:tab===t.id?"2px solid "+C.cyan:"2px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2,position:"relative"}}>
+            <span style={{fontSize:18}}>{t.icon}</span>{t.label}
+            {t.badge>0&&<span style={{position:"absolute",top:6,right:"calc(50% - 20px)",background:C.red,color:"#fff",fontSize:9,fontWeight:800,borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center"}}>{t.badge}</span>}
+          </button>))}
+      </div>
+    </div>);
+}
+
+
+function ShareProgress({student}){
+  const th=THEMES[student.themeIdx];
+  const [copied,setCopied]=useState(false);
+  const [showCode,setShowCode]=useState(false);
+  const generateCode=()=>{
+    try{
+      const data={student,exportedAt:new Date().toISOString(),version:3};
+      return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    }catch{return "";}
+  };
+  const code=generateCode();
+  const copy=()=>{
+    navigator.clipboard.writeText(code).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),3000);}).catch(()=>{const el=document.createElement("textarea");el.value=code;document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);setCopied(true);setTimeout(()=>setCopied(false),3000);});
+  };
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <Card color={th.primary}>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>📤 Share Progress with Ms. J</div>
+        <div style={{color:C.muted,fontSize:13,lineHeight:1.6}}>Generate a progress code and paste it in Google Classroom so Ms. J can view your full dashboard from her device!</div>
+      </Card>
+      <Card>
+        <div style={{textAlign:"center",padding:"8px 0 16px"}}>
+          <div style={{fontSize:52,marginBottom:12}}>🔗</div>
+          <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>Your Progress Code</div>
+          <div style={{color:C.muted,fontSize:13,lineHeight:1.7,marginBottom:20}}>
+            Click Generate, then copy the code.<br/>
+            Paste it as a <strong style={{color:th.primary}}>Google Classroom comment</strong> or private message to Ms. J.
+          </div>
+          {!showCode?(
+            <Btn onClick={()=>setShowCode(true)} color={th.primary} style={{width:"100%",padding:"14px",fontSize:15}}>
+              ✨ Generate My Progress Code
+            </Btn>
+          ):(
+            <div>
+              <div style={{background:C.card2,border:"1px solid "+C.border,borderRadius:12,padding:16,marginBottom:14,wordBreak:"break-all",fontSize:11,color:C.muted,fontFamily:"monospace",maxHeight:120,overflowY:"auto",textAlign:"left"}}>
+                {code.substring(0,200)}...
+              </div>
+              <Btn onClick={copy} color={copied?C.green:th.primary} style={{width:"100%",padding:"14px",fontSize:15}}>
+                {copied?"✅ Copied to Clipboard!":"📋 Copy Full Code"}
+              </Btn>
+              {copied&&<div style={{color:C.green,fontSize:13,marginTop:10,fontWeight:600}}>Paste this in Google Classroom — Ms. J can load it instantly! 🎉</div>}
+            </div>)}
+        </div>
+      </Card>
+      <Card>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:10,color:C.muted}}>📋 How to share:</div>
+        {["1. Click Generate My Progress Code above","2. Click Copy Full Code","3. Go to your Google Classroom","4. Comment or message Ms. J and paste the code","5. She'll paste it in her Teacher Dashboard to see your full data!"].map((step,i)=>(
+          <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8}}>
+            <div style={{width:24,height:24,borderRadius:"50%",background:th.primary+"33",border:"1px solid "+th.primary+"55",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:th.primary,flexShrink:0}}>{i+1}</div>
+            <div style={{fontSize:13,color:"#ccc",lineHeight:1.5}}>{step.substring(2)}</div>
+          </div>))}
+      </Card>
+    </div>);
+}
+
+function StudentImportPanel({state,save}){
+  const [code,setCode]=useState("");
+  const [loaded,setLoaded]=useState(null);
+  const [error,setError]=useState("");
+  const loadCode=()=>{
+    try{
+      setError("");
+      const decoded=JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+      if(!decoded.student||decoded.version!==3)throw new Error("Invalid code");
+      setLoaded(decoded);
+    }catch{setError("Invalid code. Make sure the student copied the full code.");}
+  };
+  const mergeStudent=()=>{
+    if(!loaded)return;
+    const incoming=loaded.student;
+    const exists=state.students.find(s=>s.id===incoming.id);
+    if(exists){
+      save({...state,students:state.students.map(s=>s.id===incoming.id?{...incoming}:s)});
+    }
+    alert("Student data loaded! Go to Overview to see their full progress.");
+    setCode("");setLoaded(null);
+  };
+  return(
+    <div style={{display:"grid",gap:16}}>
+      <Card color={C.pink}>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>📥 Load Student Progress</div>
+        <div style={{color:C.muted,fontSize:13,lineHeight:1.6}}>Paste a student's progress code here to view their full dashboard — even from their device!</div>
+      </Card>
+      <Card>
+        <Inp label="Paste Student Progress Code" value={code} onChange={setCode} multiline rows={5} placeholder="Paste the full code the student copied from their Share Progress tab..."/>
+        {error&&<div style={{color:C.red,fontSize:13,marginBottom:12}}>{error}</div>}
+        <Btn onClick={loadCode} color={C.pink} disabled={!code.trim()} style={{width:"100%"}}>🔍 Load Student Data</Btn>
+      </Card>
+      {loaded&&(()=>{
+        const s=loaded.student;const th=THEMES[s.themeIdx];
+        return(
+          <Card color={C.green}>
+            <div style={{marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                {s.photo?<img src={s.photo} alt="" style={{width:52,height:52,borderRadius:10,objectFit:"cover",border:"2px solid "+th.primary}}/>
+                :<div style={{width:52,height:52,borderRadius:10,background:"linear-gradient(135deg,"+th.primary+","+th.primary+"88)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{s.emoji}</div>}
+                <div>
+                  <div style={{fontWeight:800,fontSize:16}}>{s.name}</div>
+                  <div style={{color:C.muted,fontSize:13}}>Exported {loaded.exportedAt?new Date(loaded.exportedAt).toLocaleString():""}</div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{background:C.card2,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600}}>BALANCE</div>
+                  <div style={{fontSize:20,fontWeight:800,color:s.balance>=0?C.green:C.red}}>{fmt(s.balance)}</div>
+                </div>
+                <div style={{background:C.card2,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600}}>JOB STATUS</div>
+                  <div style={{fontSize:13,fontWeight:700,color:s.jobStatus==="hired"?C.green:C.amber}}>{s.jobStatus==="hired"?(s.job?s.job.title:""):"Not hired yet"}</div>
+                </div>
+                <div style={{background:C.card2,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600}}>BLOGS</div>
+                  <div style={{fontSize:20,fontWeight:800,color:th.primary}}>{(s.blogResponses?s.blogResponses.length:0)}</div>
+                </div>
+                <div style={{background:C.card2,borderRadius:10,padding:12,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.muted,fontWeight:600}}>VLOGS</div>
+                  <div style={{fontSize:20,fontWeight:800,color:th.primary}}>{(s.vlogs?s.vlogs.length:0)}</div>
+                </div>
+              </div>
+            </div>
+            {(s.blogResponses&&s.blogResponses.length>0)&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>LATEST BLOG RESPONSE</div>
+                <div style={{background:C.card2,borderRadius:10,padding:12}}>
+                  {s.blogResponses[s.blogResponses.length-1].question&&<div style={{fontSize:12,color:C.cyan,marginBottom:6,fontStyle:"italic"}}>"{s.blogResponses[s.blogResponses.length-1].question}"</div>}
+                  <div style={{fontSize:13,color:"#ddd",lineHeight:1.6}}>{s.blogResponses[s.blogResponses.length-1].response}</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:6}}>{s.blogResponses[s.blogResponses.length-1].mood} {fmtDate(s.blogResponses[s.blogResponses.length-1].date)}</div>
+                </div>
+              </div>)}
+            {(s.vlogs&&s.vlogs.length>0)&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:12,color:C.muted,fontWeight:600,marginBottom:8}}>LATEST VLOG REFLECTION</div>
+                <div style={{background:C.card2,borderRadius:10,padding:12}}>
+                  <div style={{fontSize:13,color:"#ddd",lineHeight:1.6}}>{s.vlogs[s.vlogs.length-1].reflection}</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:6}}>{fmtDate(s.vlogs[s.vlogs.length-1].date)}</div>
+                </div>
+              </div>)}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <Btn onClick={mergeStudent} color={C.green} style={{padding:"12px"}}>✅ Save to My Dashboard</Btn>
+              <Btn onClick={()=>{setLoaded(null);setCode("");}} outline color={C.muted} style={{padding:"12px"}}>Clear</Btn>
+            </div>
+          </Card>);})()} 
+    </div>);
+}
+
+function App(){
+  const [state,setState]=useState(loadState);
+  const [user,setUser]=useState(null);
+  const [paycheckAlert,setPaycheckAlert]=useState(null);
+  const save=useCallback(ns=>{setState(ns);saveState(ns);},[]);
+  const updateStudent=useCallback((id,updater)=>{setState(prev=>{const next={...prev,students:prev.students.map(s=>s.id===id?updater(s):s)};saveState(next);return next;});},[]);
+  const loginStudent=useCallback(student=>{
+    setState(prev=>{
+      const latest=prev.students.find(s=>s.id===student.id)||student;
+      const due=pendingPaychecks(latest);
+      if(due.length>0){
+        const{student:updated,amount}=applyPaychecks(latest,due);
+        const next={...prev,students:prev.students.map(s=>s.id===updated.id?updated:s)};
+        saveState(next);
+        setPaycheckAlert({amount});
+        return next;
+      }
+      return prev;
+    });
+    setUser({role:"student",studentId:student.id});
+  },[]);
+  if(!user)return<LoginScreen state={state} onTeacherLogin={()=>setUser({role:"teacher"})} onStudentLogin={loginStudent}/>;
+  if(user.role==="teacher")return<TeacherDashboard state={state} save={save} onLogout={()=>setUser(null)}/>;
+  const currentStudent=state.students.find(s=>s.id===user.studentId);
+  if(!currentStudent){setUser(null);return null;}
+  return<StudentDashboard student={currentStudent} state={state} paycheckAlert={paycheckAlert} onClearAlert={()=>setPaycheckAlert(null)} onUpdate={updater=>updateStudent(currentStudent.id,updater)} onLogout={()=>setUser(null)}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
